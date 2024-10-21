@@ -22,12 +22,13 @@ app.use(compression());  // Compression des réponses HTTP
 
 // Configuration CORS
 const corsOptions = {
-    origin: ['http://localhost:3000', 'https://f766-2a01-e0a-5e8-4570-a943-fc56-3b4b-653d.ngrok-free.app'], // Accepter les requêtes de ces origines
+    origin: ['http://localhost:3000', 'https://athletic-topaz.vercel.app'], 
     methods: ['GET', 'POST', 'PUT', 'DELETE'],  // Méthodes HTTP autorisées
     allowedHeaders: ['Content-Type', 'Authorization'],  // En-têtes autorisés
     credentials: true  // Autoriser les cookies ou les informations d'authentification
 };
 app.use(cors(corsOptions));
+
 
 
 // Limitation des requêtes
