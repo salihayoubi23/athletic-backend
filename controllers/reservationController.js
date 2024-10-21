@@ -125,6 +125,7 @@ exports.createReservation = async (req, res) => {
 exports.createCheckoutSession = async (req, res) => {
     try {
         const { reservationIds } = req.body;
+        console.log('Reservation IDs:', reservationIds);
 
         const reservations = await Reservation.find({ _id: { $in: reservationIds } }).populate('prestations.prestationId');
 
@@ -146,11 +147,13 @@ exports.createCheckoutSession = async (req, res) => {
             }))
         );
 
+        console.log('Line items envoyés à Stripe:', line_items);
+
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
             line_items,
             mode: 'payment',
-            success_url: `${process.env.CLIENT_URL}/Success`,  // URL après succès
+            success_url: `${process.env.CLIENT_URL}/Success`,
             cancel_url: `${process.env.CLIENT_URL}/Cancel`,
             metadata: { reservationIds: reservationIds.join(',') },
         });
@@ -193,7 +196,6 @@ exports.handleStripeWebhook = async (req, res) => {
         }
     }
 
-    res.setHeader('ngrok-skip-browser-warning', 'true'); // Ajoutez cette ligne pour éviter la page de mise en garde
     res.json({ received: true }); // Répondre à Stripe
 };
 
