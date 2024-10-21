@@ -22,7 +22,7 @@ app.use(compression());  // Compression des réponses HTTP
 
 // Configuration CORS
 const corsOptions = {
-    origin: ['http://localhost:3000', 'https://athletic-topaz.vercel.app'], 
+    origin: ['http://localhost:3000', 'https://athletic-men.vercel.app'], 
     methods: ['GET', 'POST', 'PUT', 'DELETE'],  // Méthodes HTTP autorisées
     allowedHeaders: ['Content-Type', 'Authorization'],  // En-têtes autorisés
     credentials: true  // Autoriser les cookies ou les informations d'authentification
