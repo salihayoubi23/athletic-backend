@@ -166,42 +166,30 @@ exports.createCheckoutSession = async (req, res) => {
 };
 
 // Webhook Stripe pour mettre à jour les réservations payées
-// Webhook Stripe pour mettre à jour les réservations payées
+
+
 exports.handleStripeWebhook = async (req, res) => {
-    const sig = req.headers['stripe-signature'];
-    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
-    let event;
+    const event = req.body;
 
-    try {
-        event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
-        console.log('Événement reçu:', event); // Log de l'événement reçu
-    } catch (err) {
-        console.error('Erreur de vérification Webhook:', err.message);
-        return res.status(400).send(`Webhook Error: ${err.message}`);
-    }
-
+    // Vérifie l'événement de la session de checkout terminée
     if (event.type === 'checkout.session.completed') {
         const session = event.data.object;
-        const reservationIds = session.metadata.reservationIds.split(',');
 
-        console.log("Reservation IDs reçus du webhook:", reservationIds);
+        // Récupère l'ID de la réservation à partir des métadonnées
+        const reservationId = session.metadata.reservationId; // Assure-toi d'avoir stocké l'ID de la réservation ici
 
         try {
-            const result = await Reservation.updateMany(
-                { _id: { $in: reservationIds } },
-                { $set: { status: 'paid' } }  // Mettre à jour le statut à 'paid'
-            );
-            console.log(`Réservations mises à jour avec succès pour les IDs: ${reservationIds}`, result);
+            // Met à jour le statut de la réservation dans la base de données
+            await ReservationModel.findByIdAndUpdate(reservationId, { status: 'paid' });
+            console.log(`Réservation ${reservationId} mise à jour à 'paid'`);
         } catch (error) {
-            console.error('Erreur lors de la mise à jour des réservations:', error);
-            return res.status(500).json({ message: 'Erreur lors de la mise à jour des réservations.' });
+            console.error('Erreur lors de la mise à jour de la réservation:', error);
         }
     }
 
-    res.json({ received: true }); // Répondre à Stripe
+    // Réponds à Stripe pour confirmer que l'événement a été reçu
+    res.status(200).json({ received: true });
 };
-
-
 // Fonction pour récupérer une réservation par ID
 exports.getReservationById = async (req, res) => {
     try {
