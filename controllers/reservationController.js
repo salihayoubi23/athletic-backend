@@ -166,6 +166,7 @@ exports.createCheckoutSession = async (req, res) => {
 };
 
 // Webhook Stripe pour mettre à jour les réservations payées
+// Webhook Stripe pour mettre à jour les réservations payées
 exports.handleStripeWebhook = async (req, res) => {
     const sig = req.headers['stripe-signature'];
     const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -173,6 +174,7 @@ exports.handleStripeWebhook = async (req, res) => {
 
     try {
         event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+        console.log('Événement reçu:', event); // Log de l'événement reçu
     } catch (err) {
         console.error('Erreur de vérification Webhook:', err.message);
         return res.status(400).send(`Webhook Error: ${err.message}`);
@@ -185,11 +187,11 @@ exports.handleStripeWebhook = async (req, res) => {
         console.log("Reservation IDs reçus du webhook:", reservationIds);
 
         try {
-            await Reservation.updateMany(
+            const result = await Reservation.updateMany(
                 { _id: { $in: reservationIds } },
-                { $set: { status: 'paid' } }
+                { $set: { status: 'paid' } }  // Mettre à jour le statut à 'paid'
             );
-            console.log(`Réservations mises à jour avec succès pour les IDs: ${reservationIds}`);
+            console.log(`Réservations mises à jour avec succès pour les IDs: ${reservationIds}`, result);
         } catch (error) {
             console.error('Erreur lors de la mise à jour des réservations:', error);
             return res.status(500).json({ message: 'Erreur lors de la mise à jour des réservations.' });
@@ -198,6 +200,7 @@ exports.handleStripeWebhook = async (req, res) => {
 
     res.json({ received: true }); // Répondre à Stripe
 };
+
 
 // Fonction pour récupérer une réservation par ID
 exports.getReservationById = async (req, res) => {
