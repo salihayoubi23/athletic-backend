@@ -244,3 +244,14 @@ exports.getReservationById = async (req, res) => {
         res.status(500).json({ message: 'Erreur interne du serveur.' });
     }
 };
+const updateReservationStatusToPaid = async (reservationIds) => {
+    try {
+        await Reservation.updateMany(
+            { _id: { $in: reservationIds } },
+            { $set: { status: 'paid' } }
+        );
+        console.log('Réservations mises à jour en tant que payées.');
+    } catch (error) {
+        console.error('Erreur lors de la mise à jour des réservations :', error);
+    }
+};
