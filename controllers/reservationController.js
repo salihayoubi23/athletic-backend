@@ -63,21 +63,25 @@ exports.getUserPaidReservations = async (req, res) => {
 exports.updateReservationStatus = async (req, res) => {
     try {
         const { reservationId } = req.body;
+        console.log('ID de réservation reçu pour la mise à jour du statut:', reservationId);
 
         const reservation = await Reservation.findById(reservationId);
         if (!reservation) {
+            console.log('Réservation non trouvée pour l\'ID:', reservationId);
             return res.status(404).json({ message: 'Réservation non trouvée.' });
         }
 
         reservation.status = 'paid'; // Mettre à jour le statut
         await reservation.save();
 
+        console.log('Statut de la réservation mis à jour avec succès pour l\'ID:', reservationId);
         res.status(200).json({ message: 'Réservation mise à jour avec succès.' });
     } catch (err) {
         console.error('Erreur lors de la mise à jour de la réservation:', err);
         res.status(500).json({ message: 'Erreur lors de la mise à jour de la réservation.' });
     }
 };
+
 
 // Créer une réservation
 exports.createReservation = async (req, res) => {
@@ -88,10 +92,12 @@ exports.createReservation = async (req, res) => {
     console.log('Prestations reçues:', prestations);
 
     if (!user) {
+        console.log("Erreur : l'utilisateur est requis.");
         return res.status(400).json({ message: "L'utilisateur est requis." });
     }
 
     if (!Array.isArray(prestations) || prestations.length === 0) {
+        console.log("Erreur : le panier de prestations est vide ou invalide.");
         return res.status(400).json({ message: 'Le panier de prestations doit contenir au moins une prestation.' });
     }
 
@@ -111,6 +117,7 @@ exports.createReservation = async (req, res) => {
         });
 
         await newReservation.save();
+        console.log('Réservation créée avec succès:', newReservation);
         res.status(201).json({
             message: 'Réservation créée avec succès.',
             reservationId: newReservation._id
@@ -121,15 +128,16 @@ exports.createReservation = async (req, res) => {
     }
 };
 
-// Créer une session de paiement
+
 // Créer une session de paiement
 exports.createCheckoutSession = async (req, res) => {
     try {
         const { reservationIds } = req.body;
-        console.log('Reservation IDs:', reservationIds);
+        console.log('Reservation IDs reçus dans la requête:', reservationIds);
 
         // Vérifie si les IDs de réservation sont présents
         if (!reservationIds || reservationIds.length === 0) {
+            console.log('Aucun ID de réservation fourni');
             return res.status(400).json({ message: 'Aucun ID de réservation fourni.' });
         }
 
@@ -137,6 +145,7 @@ exports.createCheckoutSession = async (req, res) => {
         const reservations = await Reservation.find({ _id: { $in: reservationIds } }).populate('prestations.prestationId');
 
         if (!reservations || reservations.length === 0) {
+            console.log('Aucune réservation trouvée pour ces IDs:', reservationIds);
             return res.status(404).json({ message: "Aucune réservation trouvée pour ces IDs." });
         }
 
@@ -146,16 +155,16 @@ exports.createCheckoutSession = async (req, res) => {
                 price_data: {
                     currency: 'eur',
                     product_data: {
-                        name: prestation.prestationId.name,  // Utilise le nom du produit lié
-                        description: prestation.prestationId.description || prestation.prestationId.name,  // Description facultative
+                        name: prestation.prestationId.name,
+                        description: prestation.prestationId.description || prestation.prestationId.name,
                     },
-                    unit_amount: prestation.prestationId.price * 100,  // Prix en centimes
+                    unit_amount: prestation.prestationId.price * 100,
                 },
-                quantity: prestation.quantity || 1,  // Par défaut à 1 si la quantité est manquante
+                quantity: prestation.quantity || 1,
             }))
         );
 
-        console.log('Line items envoyés à Stripe:', line_items);
+        console.log('Détails des articles pour Stripe (line_items):', JSON.stringify(line_items, null, 2));
 
         // Créer la session de paiement Stripe
         const session = await stripe.checkout.sessions.create({
@@ -164,8 +173,10 @@ exports.createCheckoutSession = async (req, res) => {
             mode: 'payment',
             success_url: `${process.env.CLIENT_URL}/Success`,
             cancel_url: `${process.env.CLIENT_URL}/Cancel`,
-            metadata: { reservationIds: reservationIds.join(',') },  // Stocke les IDs des réservations dans les métadonnées
+            metadata: { reservationIds: reservationIds.join(',') },
         });
+
+        console.log('Session Stripe créée avec succès:', session);
 
         // Renvoie l'URL de la session
         res.json({ url: session.url });
@@ -174,6 +185,7 @@ exports.createCheckoutSession = async (req, res) => {
         res.status(500).json({ message: 'Erreur lors de la création de la session de paiement.' });
     }
 };
+
 
 // Webhook Stripe pour mettre à jour les réservations payées
 exports.handleStripeWebhook = async (req, res) => {
@@ -184,7 +196,7 @@ exports.handleStripeWebhook = async (req, res) => {
     try {
         // Vérifie la signature du webhook Stripe
         event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
-        console.log('Événement reçu:', event);
+        console.log('Événement Stripe reçu:', JSON.stringify(event, null, 2));
     } catch (err) {
         console.error('Erreur de vérification Webhook:', err.message);
         return res.status(400).send(`Webhook Error: ${err.message}`);
@@ -196,8 +208,7 @@ exports.handleStripeWebhook = async (req, res) => {
 
         // Récupère les IDs de réservation depuis les métadonnées
         const reservationIds = session.metadata.reservationIds.split(',');
-
-        console.log("Reservation IDs reçus du webhook:", reservationIds);
+        console.log("Reservation IDs reçus du webhook Stripe:", reservationIds);
 
         try {
             // Met à jour le statut des réservations dans la base de données
@@ -205,6 +216,7 @@ exports.handleStripeWebhook = async (req, res) => {
                 { _id: { $in: reservationIds } },
                 { $set: { status: 'paid' } }
             );
+
             console.log(`Réservations mises à jour avec succès pour les IDs: ${reservationIds}`, result);
         } catch (error) {
             console.error('Erreur lors de la mise à jour des réservations:', error);
