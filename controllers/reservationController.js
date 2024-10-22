@@ -122,42 +122,52 @@ exports.createReservation = async (req, res) => {
 };
 
 // Créer une session de paiement
+// Créer une session de paiement
 exports.createCheckoutSession = async (req, res) => {
     try {
         const { reservationIds } = req.body;
         console.log('Reservation IDs:', reservationIds);
 
+        // Vérifie si les IDs de réservation sont présents
+        if (!reservationIds || reservationIds.length === 0) {
+            return res.status(400).json({ message: 'Aucun ID de réservation fourni.' });
+        }
+
+        // Récupérer les réservations associées
         const reservations = await Reservation.find({ _id: { $in: reservationIds } }).populate('prestations.prestationId');
 
         if (!reservations || reservations.length === 0) {
             return res.status(404).json({ message: "Aucune réservation trouvée pour ces IDs." });
         }
 
+        // Créer les items de ligne à envoyer à Stripe
         const line_items = reservations.flatMap(reservation =>
             reservation.prestations.map(prestation => ({
                 price_data: {
                     currency: 'eur',
                     product_data: {
-                        name: prestation.name,
-                        description: prestation.name,
+                        name: prestation.prestationId.name,  // Utilise le nom du produit lié
+                        description: prestation.prestationId.description || prestation.prestationId.name,  // Description facultative
                     },
-                    unit_amount: prestation.price * 100,
+                    unit_amount: prestation.prestationId.price * 100,  // Prix en centimes
                 },
-                quantity: 1,
+                quantity: prestation.quantity || 1,  // Par défaut à 1 si la quantité est manquante
             }))
         );
 
         console.log('Line items envoyés à Stripe:', line_items);
 
+        // Créer la session de paiement Stripe
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
             line_items,
             mode: 'payment',
             success_url: `${process.env.CLIENT_URL}/Success`,
             cancel_url: `${process.env.CLIENT_URL}/Cancel`,
-            metadata: { reservationIds: reservationIds.join(',') },
+            metadata: { reservationIds: reservationIds.join(',') },  // Stocke les IDs des réservations dans les métadonnées
         });
 
+        // Renvoie l'URL de la session
         res.json({ url: session.url });
     } catch (error) {
         console.error("Erreur lors de la création de la session de paiement:", error);
@@ -166,34 +176,50 @@ exports.createCheckoutSession = async (req, res) => {
 };
 
 // Webhook Stripe pour mettre à jour les réservations payées
-
-
 exports.handleStripeWebhook = async (req, res) => {
-    const event = req.body;
+    const sig = req.headers['stripe-signature'];
+    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    let event;
 
-    // Vérifie l'événement de la session de checkout terminée
+    try {
+        // Vérifie la signature du webhook Stripe
+        event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+        console.log('Événement reçu:', event);
+    } catch (err) {
+        console.error('Erreur de vérification Webhook:', err.message);
+        return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    // Traiter l'événement de session de paiement complété
     if (event.type === 'checkout.session.completed') {
         const session = event.data.object;
 
-        // Récupère l'ID de la réservation à partir des métadonnées
-        const reservationId = session.metadata.reservationId; // Assure-toi d'avoir stocké l'ID de la réservation ici
+        // Récupère les IDs de réservation depuis les métadonnées
+        const reservationIds = session.metadata.reservationIds.split(',');
+
+        console.log("Reservation IDs reçus du webhook:", reservationIds);
 
         try {
-            // Met à jour le statut de la réservation dans la base de données
-            await ReservationModel.findByIdAndUpdate(reservationId, { status: 'paid' });
-            console.log(`Réservation ${reservationId} mise à jour à 'paid'`);
+            // Met à jour le statut des réservations dans la base de données
+            const result = await Reservation.updateMany(
+                { _id: { $in: reservationIds } },
+                { $set: { status: 'paid' } }
+            );
+            console.log(`Réservations mises à jour avec succès pour les IDs: ${reservationIds}`, result);
         } catch (error) {
-            console.error('Erreur lors de la mise à jour de la réservation:', error);
+            console.error('Erreur lors de la mise à jour des réservations:', error);
+            return res.status(500).json({ message: 'Erreur lors de la mise à jour des réservations.' });
         }
     }
 
-    // Réponds à Stripe pour confirmer que l'événement a été reçu
-    res.status(200).json({ received: true });
+    // Confirme la réception de l'événement à Stripe
+    res.json({ received: true });
 };
+
 // Fonction pour récupérer une réservation par ID
 exports.getReservationById = async (req, res) => {
     try {
-        const reservation = await Reservation.findById(req.params.id).populate('prestation');
+        const reservation = await Reservation.findById(req.params.id).populate('prestations.prestationId');
 
         if (!reservation) {
             return res.status(404).json({ message: 'Réservation non trouvée.' });
