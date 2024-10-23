@@ -22,47 +22,9 @@ router.put('/update-status', authMiddleware, reservationController.updateReserva
 router.post('/create-checkout-session', authMiddleware, reservationController.createCheckoutSession);
 
 // Gérer le webhook de Stripe
-// Endpoint pour écouter les webhooks
-router.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
-    const sig = req.headers['stripe-signature'];
-
-    let event;
-    try {
-        event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
-    } catch (err) {
-        return res.status(400).send(`Webhook Error: ${err.message}`);
-    }
-
-    // Handle the event (exemple pour un paiement réussi)
-    if (event.type === 'checkout.session.completed') {
-        const session = event.data.object;
-
-        // Update reservation status in your database
-        const reservationIds = session.metadata.reservationIds;
-        // Mettre à jour le statut à 'paid'
-        updateReservationStatusToPaid(reservationIds);
-    }
-
-    res.json({ received: true });
-});
+router.post('/webhook', express.raw({ type: 'application/json' }), reservationController.handleStripeWebhook);
 
 // Récupérer une réservation par ID
-router.get('/:id', authMiddleware, reservationController.getReservationById); 
-
-router.get('/reservations-paid', async (req, res) => {
-    try {
-        const userId = req.user.id; 
-        const reservations = await Reservation.find({
-            user: userId,
-            status: 'paid'
-        });
-        res.json(reservations);
-    } catch (error) {
-        res.status(500).json({ message: 'Erreur lors de la récupération des réservations.' });
-    }
-});
-
-
-
+router.get('/:id', authMiddleware, reservationController.getReservationById); // Ajoutez cette ligne ici
 
 module.exports = router;
