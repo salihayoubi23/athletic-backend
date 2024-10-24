@@ -185,45 +185,41 @@ exports.createCheckoutSession = async (req, res) => {
 };
 
 // Webhook Stripe pour mettre à jour les réservations payées
-
 exports.handleStripeWebhook = async (req, res) => {
     const sig = req.headers['stripe-signature'];
+    console.log("Signature Stripe reçue:", sig); // Log de la signature
+
     let event;
 
     try {
-        // Vérification de la signature de l'événement Stripe
         event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
-        console.log('Événement Stripe reçu:', event.type);
+        console.log('Événement Stripe reçu avec succès:', event.type); // Log de l'événement
     } catch (err) {
-        console.error('Erreur de validation du webhook:', err.message);
+        console.error('Erreur de validation du webhook:', err.message); // Log de l'erreur
         return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
-    // Gestion de l'événement checkout.session.completed
     if (event.type === 'checkout.session.completed') {
         const session = event.data.object;
+        console.log('Détails de la session Stripe:', session); // Log des détails de la session
+
         const reservationIds = session.metadata.reservationIds ? session.metadata.reservationIds.split(',') : [];
-        
-        // Log des informations sur la session
-        console.log(`Session Checkout complétée pour un total de ${session.amount_total} ${session.currency}`);
-        console.log('IDs de réservation trouvés dans les métadonnées:', reservationIds);
+        console.log('IDs de réservation trouvés:', reservationIds); // Log des IDs de réservation
 
         if (reservationIds.length > 0) {
             try {
-                // Appel à la fonction pour mettre à jour le statut de la réservation
                 await updateReservationStatusToPaid(reservationIds);
-                console.log('Statut de la réservation mis à jour avec succès pour les IDs:', reservationIds);
+                console.log('Statut des réservations mis à jour:', reservationIds);
             } catch (err) {
-                console.error('Erreur lors de la mise à jour du statut de la réservation:', err.message);
-                return res.status(500).send('Erreur interne lors de la mise à jour de la réservation');
+                console.error('Erreur lors de la mise à jour des réservations:', err.message);
+                return res.status(500).send('Erreur lors de la mise à jour des réservations');
             }
-        } else {
-            console.warn('Aucun ID de réservation trouvé dans la session.');
         }
     }
 
     res.status(200).json({ received: true });
 };
+
 
 
 
