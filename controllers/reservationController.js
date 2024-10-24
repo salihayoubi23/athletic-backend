@@ -192,6 +192,7 @@ exports.handleStripeWebhook = async (req, res) => {
     let event;
 
     try {
+        // Utiliser le corps brut de la requête pour vérifier la signature Stripe
         event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
         console.log('Événement Stripe reçu avec succès:', event.type); // Log de l'événement
     } catch (err) {
@@ -199,15 +200,18 @@ exports.handleStripeWebhook = async (req, res) => {
         return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
+    // Gérer les événements spécifiques (comme le paiement complété)
     if (event.type === 'checkout.session.completed') {
         const session = event.data.object;
         console.log('Détails de la session Stripe:', session); // Log des détails de la session
 
+        // Récupérer les IDs de réservation depuis les métadonnées de la session Stripe
         const reservationIds = session.metadata.reservationIds ? session.metadata.reservationIds.split(',') : [];
         console.log('IDs de réservation trouvés:', reservationIds); // Log des IDs de réservation
 
         if (reservationIds.length > 0) {
             try {
+                // Mettre à jour le statut des réservations à "payé"
                 await updateReservationStatusToPaid(reservationIds);
                 console.log('Statut des réservations mis à jour:', reservationIds);
             } catch (err) {
@@ -217,6 +221,7 @@ exports.handleStripeWebhook = async (req, res) => {
         }
     }
 
+    // Répondre à Stripe pour confirmer que l'événement a été traité
     res.status(200).json({ received: true });
 };
 
