@@ -185,29 +185,48 @@ exports.createCheckoutSession = async (req, res) => {
 };
 
 // Webhook Stripe pour mettre à jour les réservations payées
+
 exports.handleStripeWebhook = async (req, res) => {
     const sig = req.headers['stripe-signature'];
     let event;
-    
+
     try {
-        // Vérifie la signature de l'événement Stripe
+        // Vérification de la signature de l'événement Stripe
         event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
         console.log('Événement Stripe reçu:', event.type);
     } catch (err) {
         console.error('Erreur de validation du webhook:', err.message);
         return res.status(400).send(`Webhook Error: ${err.message}`);
     }
-    
-    // Gestion des événements checkout.session.completed
+
+    // Gestion de l'événement checkout.session.completed
     if (event.type === 'checkout.session.completed') {
         const session = event.data.object;
-        const reservationIds = session.metadata.reservationIds.split(',');  // Utilise les métadonnées de Stripe pour obtenir les IDs de réservation
-        await updateReservationStatusToPaid(reservationIds);
-        console.log('Statut de la réservation mis à jour pour les IDs:', reservationIds);
+        const reservationIds = session.metadata.reservationIds ? session.metadata.reservationIds.split(',') : [];
+        
+        // Log des informations sur la session
+        console.log(`Session Checkout complétée pour un total de ${session.amount_total} ${session.currency}`);
+        console.log('IDs de réservation trouvés dans les métadonnées:', reservationIds);
+
+        if (reservationIds.length > 0) {
+            try {
+                // Appel à la fonction pour mettre à jour le statut de la réservation
+                await updateReservationStatusToPaid(reservationIds);
+                console.log('Statut de la réservation mis à jour avec succès pour les IDs:', reservationIds);
+            } catch (err) {
+                console.error('Erreur lors de la mise à jour du statut de la réservation:', err.message);
+                return res.status(500).send('Erreur interne lors de la mise à jour de la réservation');
+            }
+        } else {
+            console.warn('Aucun ID de réservation trouvé dans la session.');
+        }
     }
-    
+
     res.status(200).json({ received: true });
 };
+
+
+
 
 // Fonction pour récupérer une réservation par ID
 exports.getReservationById = async (req, res) => {
@@ -230,7 +249,7 @@ const updateReservationStatusToPaid = async (reservationIds) => {
             { _id: { $in: reservationIds } },
             { $set: { status: 'paid' } }
         );
-        console.log('Réservations mises à jour en tant que payées.');
+        console.log('Mise à jour des réservations dans la base de données pour les IDs:', reservationIds);
     } catch (error) {
         console.error('Erreur lors de la mise à jour des réservations :', error);
     }
