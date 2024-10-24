@@ -186,47 +186,27 @@ exports.createCheckoutSession = async (req, res) => {
 
 // Webhook Stripe pour mettre à jour les réservations payées
 exports.handleStripeWebhook = async (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    let event;
+    
     try {
-        console.log("Stripe webhook initiated...");
-
-        const sig = req.headers['stripe-signature'];
-        let event;
-
-        // Vérification de l'événement Stripe
-        try {
-            event = stripe.webhooks.constructEvent(req.rawBody, sig, process.env.STRIPE_ENDPOINT_SECRET);
-            console.log("Stripe event constructed successfully:", event.type);
-        } catch (err) {
-            console.error("Error verifying Stripe event:", err.message);
-            return res.status(400).send(`Webhook Error: ${err.message}`);
-        }
-
-        // Gestion des événements
-        if (event.type === 'checkout.session.completed') {
-            const session = event.data.object;
-            console.log("Checkout session completed:", session);
-
-            const reservationId = session.metadata.reservationIds;
-            console.log(`Reservation ID extracted from metadata: ${reservationId}`);
-
-            // Mettre à jour le statut de la réservation à "paid" et ajouter l'ID Stripe
-            const reservation = await Reservation.findById(reservationId);
-            if (!reservation) {
-                console.log(`Reservation not found: ${reservationId}`);
-                return res.status(404).json({ message: 'Reservation not found' });
-            }
-
-            reservation.status = 'paid';
-            reservation.stripeSessionId = session.id; // Ajout de l'ID Stripe
-            await reservation.save();
-            console.log(`Reservation updated to 'paid' with Stripe session ID: ${session.id} for ID: ${reservationId}`);
-        }
-
-        res.status(200).json({ received: true });
-    } catch (error) {
-        console.error("Error handling Stripe webhook:", error.message);
-        res.status(500).send("Internal Server Error");
+        // Vérifie la signature de l'événement Stripe
+        event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+        console.log('Événement Stripe reçu:', event.type);
+    } catch (err) {
+        console.error('Erreur de validation du webhook:', err.message);
+        return res.status(400).send(`Webhook Error: ${err.message}`);
     }
+    
+    // Gestion des événements checkout.session.completed
+    if (event.type === 'checkout.session.completed') {
+        const session = event.data.object;
+        const reservationIds = session.metadata.reservationIds.split(',');  // Utilise les métadonnées de Stripe pour obtenir les IDs de réservation
+        await updateReservationStatusToPaid(reservationIds);
+        console.log('Statut de la réservation mis à jour pour les IDs:', reservationIds);
+    }
+    
+    res.status(200).json({ received: true });
 };
 
 // Fonction pour récupérer une réservation par ID
