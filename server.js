@@ -41,6 +41,8 @@ app.use(limiter);
 
 // Middleware pour parser les requêtes JSON
 app.use(express.json());  // Middleware pour les requêtes JSON
+app.use(express.urlencoded({ extended: true }));
+
 
 // Routes
 const authRoutes = require('./routes/authRoutes');
@@ -82,7 +84,6 @@ app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({ message: process.env.NODE_ENV === 'development' ? err.message : 'Une erreur est survenue, veuillez réessayer plus tard.' });
 });
-app.post('/webhook', express.raw({ type: 'application/json' }), reservationRoutes.handleStripeWebhook);
 
 
 
