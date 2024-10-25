@@ -122,6 +122,7 @@ exports.handleStripeWebhook = async (req, res) => {
     let event;
 
     try {
+        // Stripe vérifiera la signature avec le corps brut de la requête
         event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
     } catch (err) {
         console.error('Erreur de validation du webhook:', err.message);
@@ -144,6 +145,7 @@ exports.handleStripeWebhook = async (req, res) => {
 
     res.status(200).json({ received: true });
 };
+
 
 exports.getReservationById = async (req, res) => {
     try {
