@@ -5,7 +5,6 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const compression = require('compression');
 const connectDB = require('./config/db');
-const Prestation = require('./models/prestationModel'); // Importer le modèle Prestation
 
 // Charger les variables d'environnement
 dotenv.config();
@@ -21,7 +20,7 @@ app.use(compression());
 
 // Configuration CORS
 const corsOptions = {
-    origin: ['http://localhost:3000', 'https://athletic-men.vercel.app'], 
+    origin: ['http://localhost:3000', 'https://athletic-men.vercel.app'],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
@@ -51,26 +50,8 @@ app.use('/api/prestations', prestationRoutes);
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/admin', adminRoutes);
 
-// Route pour récupérer la prestation par nom
-app.get('/api/prestations/name/:name', async (req, res) => {
-    try {
-        const name = req.params.name;
-        console.log("Requête reçue pour la prestation avec le nom:", name);
-
-        const prestation = await Prestation.findOne({ name: name });
-        
-        if (!prestation) {
-            return res.status(404).json({ message: 'Prestation non trouvée' });
-        }
-        res.json(prestation);
-    } catch (error) {
-        console.error("Erreur lors de la récupération de la prestation:", error);
-        res.status(500).json({ message: 'Erreur interne du serveur' });
-    }
-});
-
 // Gestion des erreurs 404
-app.use((req, res, next) => {
+app.use((req, res) => {
     res.status(404).json({ message: 'Route non trouvée.' });
 });
 
