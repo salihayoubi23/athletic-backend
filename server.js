@@ -5,16 +5,8 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const compression = require('compression');
 const connectDB = require('./config/db');
+const bodyParser = require('body-parser');
 
-
-// Utiliser body-parser pour toutes les routes sauf /webhook
-app.use((req, res, next) => {
-    if (req.originalUrl === '/webhook') {
-        next();
-    } else {
-        bodyParser.json()(req, res, next);
-    }
-});
 // Charger les variables d'environnement
 dotenv.config();
 
@@ -44,7 +36,16 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Middleware pour parser les requêtes JSON
+// Utiliser body-parser pour toutes les routes sauf /webhook
+app.use((req, res, next) => {
+    if (req.originalUrl === '/api/reservations/webhook') {
+        next();
+    } else {
+        bodyParser.json()(req, res, next);
+    }
+});
+
+// Middleware pour parser les requêtes JSON et URL encodées
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
