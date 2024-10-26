@@ -156,7 +156,7 @@ exports.handleStripeWebhook = async (req, res) => {
     switch (event.type) {
         case 'checkout.session.completed':
             const session = event.data.object;
-            const reservationIds = session.metadata.reservationIds.split(',');  // Assurez-vous que cela correspond à votre format
+            const reservationIds = session.metadata.reservationIds;  // Assurez-vous que cela correspond à votre format
 
             console.log(`Session checkout terminée pour les réservations ${reservationIds}`);
 
