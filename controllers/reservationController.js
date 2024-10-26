@@ -129,7 +129,9 @@ exports.handleStripeWebhook = async (req, res) => {
         return res.status(400).send(`Erreur Webhook: ${err.message}`);
     }
 
-    if (event.type === 'checkout.session.completed') {
+    if (event.type === 'payment_intent.succeeded') {
+        console.log("Session de paiement complétée détectée :", session);
+
         const session = event.data.object;
         const reservationIds = session.metadata.reservationIds ? session.metadata.reservationIds.split(',') : [];
 
