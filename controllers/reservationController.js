@@ -126,6 +126,7 @@ exports.handleStripeWebhook = async (req, res) => {
     try {
         // Utiliser req.body sans JSON.parse pour conserver le corps brut
         event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+        console.log("Événement reçu :", JSON.stringify(event, null, 2));
     } catch (err) {
         console.error(`Échec de vérification de la signature du webhook: ${err.message}`);
         return res.status(400).send(`Erreur Webhook: ${err.message}`);
@@ -135,9 +136,10 @@ exports.handleStripeWebhook = async (req, res) => {
     if (event.type === 'checkout.session.completed') {
         const session = event.data.object;
         console.log("Session de paiement complétée détectée :", session);
-        console.log("reservationIds  :", session.metadata.reservationIds);
 
         const reservationIds = session.metadata.reservationIds ? session.metadata.reservationIds.split(',') : [];
+        console.log("Reservation IDs in webhook:", reservationIds);
+
         if (reservationIds.length > 0) {
             await exports.updateReservationStatus(reservationIds);
         } else {
@@ -149,6 +151,7 @@ exports.handleStripeWebhook = async (req, res) => {
 
     res.sendStatus(200);
 };
+
 
 // Mettre à jour le statut des réservations
 exports.updateReservationStatus = async (reservationIds) => {
