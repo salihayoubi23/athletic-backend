@@ -141,7 +141,7 @@ exports.handleStripeWebhook = async (req, res) => {
 
             // Vérifiez que l'ID est bien transmis, puis appelez la fonction de mise à jour
             if (reservationId) {
-                await updateReservationStatusToPaid([reservationId]);
+                await updateReservationStatus([reservationId]);
             } else {
                 console.error('Erreur: Aucune réservation trouvée dans le webhook');
             }
@@ -154,7 +154,7 @@ exports.handleStripeWebhook = async (req, res) => {
     res.sendStatus(200);
 };
 
-const updateReservationStatusToPaid = async (reservationIds) => {
+const updateReservationStatus = async (reservationIds) => {
     try {
         await Reservation.updateMany(
             { _id: { $in: reservationIds } },
