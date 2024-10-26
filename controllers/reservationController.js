@@ -134,7 +134,7 @@ exports.handleStripeWebhook = async (req, res) => {
         const reservationIds = session.metadata.reservationIds ? session.metadata.reservationIds.split(',') : [];
 
         if (reservationIds.length > 0) {
-            await updateReservationStatus(reservationIds);
+            await exports.updateReservationStatus(reservationIds);
         } else {
             console.error('Erreur: Aucune réservation trouvée dans le webhook');
         }
@@ -146,7 +146,7 @@ exports.handleStripeWebhook = async (req, res) => {
 };
 
 // Mettre à jour le statut des réservations
-const updateReservationStatus = async (reservationIds) => {
+exports.updateReservationStatus = async (reservationIds) => {
     if (!Array.isArray(reservationIds) || reservationIds.length === 0) {
         console.error('Aucun ID de réservation fourni ou format incorrect.');
         return;
@@ -172,8 +172,6 @@ const updateReservationStatus = async (reservationIds) => {
         console.error('Erreur lors de la mise à jour des réservations :', error.message);
     }
 };
-
-exports.updateReservationStatus = updateReservationStatus;
 
 // Récupérer une réservation par ID
 exports.getReservationById = async (req, res) => {
