@@ -4,13 +4,10 @@ const dotenv = require('dotenv');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const compression = require('compression');
-const bodyParser = require('body-parser');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);  // Utilise la clé API Stripe de votre .env
 const connectDB = require('./config/db');
 
-// Charger les variables d'environnement
 dotenv.config();
-
-// Connexion à la base de données
 connectDB();
 
 const app = express();
@@ -36,19 +33,36 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Middleware pour le webhook Stripe pour capturer le corps brut
-app.post('/api/reservations/webhook', bodyParser.raw({ type: 'application/json' }), (req, res) => {
-    // Ici, vous traitez le webhook avec `req.body` en format brut
+// Middleware pour le webhook Stripe avec express.raw
+const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+app.post('/api/reservations/webhook', express.raw({ type: 'application/json' }), (req, res) => {
     const sig = req.headers['stripe-signature'];
+    let event;
 
     try {
-        const event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
-        // Traitement de l'événement Stripe
-        res.status(200).send(`Event received: ${event.type}`);
+        event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
     } catch (err) {
-        console.log('Erreur de validation du webhook:', err.message);
-        res.status(400).send(`Webhook error: ${err.message}`);
+        console.error(`Erreur de validation du webhook : ${err.message}`);
+        return res.status(400).send(`Webhook error: ${err.message}`);
     }
+
+    // Gérer les événements Stripe
+    switch (event.type) {
+        case 'payment_intent.succeeded':
+            const paymentIntent = event.data.object;
+            console.log(`Paiement de ${paymentIntent.amount} réussi !`);
+            // Logique de gestion pour le paiement réussi
+            break;
+        case 'payment_method.attached':
+            const paymentMethod = event.data.object;
+            // Logique de gestion pour l'ajout de méthode de paiement
+            break;
+        default:
+            console.log(`Type d'événement non pris en charge: ${event.type}`);
+    }
+
+    res.sendStatus(200);
 });
 
 // Utiliser express.json() pour toutes les autres routes
