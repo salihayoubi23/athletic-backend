@@ -149,13 +149,13 @@ exports.handleStripeWebhook = async (req, res) => {
     switch (event.type) {
         case 'checkout.session.completed':
             const session = event.data.object;
-            const reservationId = session.metadata.reservationIds;  // Assurez-vous que le champ "metadata" est bien défini dans Stripe
+            const reservationIds = session.metadata.reservationIds.split(',');  // Assurez-vous que cela correspond à votre format
 
-            console.log(`Session checkout terminée pour la réservation ${reservationId}`);
+            console.log(`Session checkout terminée pour les réservations ${reservationIds}`);
 
             // Vérifiez que l'ID est bien transmis, puis appelez la fonction de mise à jour
-            if (reservationId) {
-                await updateReservationStatus([reservationId]);
+            if (reservationIds && reservationIds.length > 0) {
+                await updateReservationStatus(reservationIds);
             } else {
                 console.error('Erreur: Aucune réservation trouvée dans le webhook');
             }
@@ -168,13 +168,14 @@ exports.handleStripeWebhook = async (req, res) => {
     res.sendStatus(200);
 };
 
+
 const updateReservationStatus = async (reservationIds) => {
     try {
-        await Reservation.updateMany(
+        const result = await Reservation.updateMany(
             { _id: { $in: reservationIds } },
             { $set: { status: 'paid' } }
         );
-        console.log(`Réservation ${reservationIds} mise à jour avec le statut "paid"`);
+        console.log(`Réservation ${reservationIds} mise à jour avec le statut "paid". Modifications: ${result.modifiedCount}`);
     } catch (error) {
         console.error('Erreur lors de la mise à jour des réservations :', error);
     }
