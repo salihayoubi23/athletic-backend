@@ -6,6 +6,15 @@ const rateLimit = require('express-rate-limit');
 const compression = require('compression');
 const connectDB = require('./config/db');
 
+
+// Utiliser body-parser pour toutes les routes sauf /webhook
+app.use((req, res, next) => {
+    if (req.originalUrl === '/webhook') {
+        next();
+    } else {
+        bodyParser.json()(req, res, next);
+    }
+});
 // Charger les variables d'environnement
 dotenv.config();
 
