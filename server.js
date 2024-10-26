@@ -33,7 +33,7 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Middleware pour le webhook Stripe avec express.raw
+// Middleware pour gérer les webhooks Stripe avec express.raw uniquement pour la route webhook
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 app.post('/api/reservations/webhook', express.raw({ type: 'application/json' }), (req, res) => {
@@ -65,7 +65,7 @@ app.post('/api/reservations/webhook', express.raw({ type: 'application/json' }),
     res.sendStatus(200);
 });
 
-// Utiliser express.json() pour toutes les autres routes
+// Middleware pour le parsing des requêtes JSON (pour toutes les autres routes)
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

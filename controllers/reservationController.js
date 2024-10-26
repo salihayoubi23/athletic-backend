@@ -117,34 +117,32 @@ exports.createCheckoutSession = async (req, res) => {
     }
 };
 
-exports.handleStripeWebhook = async (req, res) => {
-    const sig = req.headers['stripe-signature'];
-    let event;
+const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-    try {
-        // Stripe vérifiera la signature avec le corps brut de la requête
-        event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
-    } catch (err) {
-        console.error('Erreur de validation du webhook:', err.message);
-        return res.status(400).send(`Webhook Error: ${err.message}`);
-    }
+exports.handleStripeWebhook = (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  let event;
 
-    if (event.type === 'checkout.session.completed') {
-        const session = event.data.object;
-        const reservationIds = session.metadata.reservationIds ? session.metadata.reservationIds.split(',') : [];
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+  } catch (err) {
+    console.error(`Webhook signature verification failed: ${err.message}`);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
 
-        if (reservationIds.length > 0) {
-            try {
-                await updateReservationStatusToPaid(reservationIds);
-            } catch (err) {
-                console.error('Erreur lors de la mise à jour des réservations:', err.message);
-                return res.status(500).send('Erreur lors de la mise à jour des réservations');
-            }
-        }
-    }
+  // Gérer l'événement
+  switch (event.type) {
+    case 'checkout.session.completed':
+      const session = event.data.object;
+      console.log(`Session checkout terminée pour ${session.id}`);
+      break;
+    default:
+      console.log(`Type d'événement non pris en charge: ${event.type}`);
+  }
 
-    res.status(200).json({ received: true });
+  res.sendStatus(200);
 };
+
 
 
 exports.getReservationById = async (req, res) => {
