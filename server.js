@@ -4,7 +4,7 @@ const dotenv = require('dotenv');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const compression = require('compression');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);  // Utilise la clé API Stripe de votre .env
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const connectDB = require('./config/db');
 
 dotenv.config();
@@ -25,7 +25,7 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-// Limitation des requêtes
+// Limiteur de requêtes
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 100,
@@ -41,27 +41,23 @@ app.post('/api/reservations/webhook', express.raw({ type: 'application/json' }),
     let event;
 
     try {
+        // Validation de la signature du webhook Stripe
         event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
     } catch (err) {
         console.error(`Erreur de validation du webhook : ${err.message}`);
         return res.status(400).send(`Webhook error: ${err.message}`);
     }
 
-    // Gérer les événements Stripe
-    switch (event.type) {
-        case 'payment_intent.succeeded':
-            const paymentIntent = event.data.object;
-            console.log(`Paiement de ${paymentIntent.amount} réussi !`);
-            // Logique de gestion pour le paiement réussi
-            break;
-        case 'payment_method.attached':
-            const paymentMethod = event.data.object;
-            // Logique de gestion pour l'ajout de méthode de paiement
-            break;
-        default:
-            console.log(`Type d'événement non pris en charge: ${event.type}`);
+    // Vérification du type d'événement et exécution de la logique pour chaque cas
+    if (event.type === 'checkout.session.completed') {
+        const session = event.data.object;
+        console.log(`Checkout session ID ${session.id} complétée.`);
+        // Logique de mise à jour des réservations à "paid" ici
+    } else {
+        console.log(`Type d'événement non pris en charge: ${event.type}`);
     }
 
+    // Répondre avec un statut 200 pour confirmer la réception
     res.sendStatus(200);
 });
 
@@ -69,12 +65,13 @@ app.post('/api/reservations/webhook', express.raw({ type: 'application/json' }),
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Routes
+// Importation des routes
 const authRoutes = require('./routes/authRoutes');
 const prestationRoutes = require('./routes/prestationRoutes');
 const reservationRoutes = require('./routes/reservationRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 
+// Utilisation des routes
 app.use('/api/auth', authRoutes);
 app.use('/api/prestations', prestationRoutes);
 app.use('/api/reservations', reservationRoutes);

@@ -120,23 +120,25 @@ const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 // Gérer le webhook Stripe
 exports.handleStripeWebhook = async (req, res) => {
     const sig = req.headers['stripe-signature'];
+    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
     let event;
 
     try {
+        // Utiliser req.body sans JSON.parse pour conserver le corps brut
         event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
     } catch (err) {
         console.error(`Échec de vérification de la signature du webhook: ${err.message}`);
         return res.status(400).send(`Erreur Webhook: ${err.message}`);
     }
 
-    if (event.type === 'payment_intent.succeeded') {
+    // Vérifiez le type d'événement
+    if (event.type === 'checkout.session.completed') {
+        const session = event.data.object;
         console.log("Session de paiement complétée détectée :", session);
 
-        const session = event.data.object;
         const reservationIds = session.metadata.reservationIds ? session.metadata.reservationIds.split(',') : [];
-
         if (reservationIds.length > 0) {
-            await exports.updateReservationStatus(reservationIds);
+            await updateReservationStatus(reservationIds);
         } else {
             console.error('Erreur: Aucune réservation trouvée dans le webhook');
         }
@@ -146,6 +148,7 @@ exports.handleStripeWebhook = async (req, res) => {
 
     res.sendStatus(200);
 };
+
 
 // Mettre à jour le statut des réservations
 exports.updateReservationStatus = async (reservationIds) => {
