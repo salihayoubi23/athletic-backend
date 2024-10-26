@@ -153,35 +153,20 @@ exports.handleStripeWebhook = async (req, res) => {
 };
 
 
+
 // Mettre à jour le statut des réservations
 exports.updateReservationStatus = async (reservationIds) => {
-    console.log('Mise à jour des réservations avec les IDs:', reservationIds); // Log des IDs
-
-    if (!Array.isArray(reservationIds) || reservationIds.length === 0) {
-        console.error('Aucun ID de réservation fourni ou format incorrect.');
-        return;
-    }
-    
-    if (!reservationIds.every(id => mongoose.Types.ObjectId.isValid(id))) {
-        console.error('Certains IDs de réservation sont invalides :', reservationIds);
-        return;
-    }
-
     try {
         const result = await Reservation.updateMany(
             { _id: { $in: reservationIds } },
-            { $set: { status: 'paid' } }
+            { status: 'paid' }
         );
-
-        if (result.modifiedCount > 0) {
-            console.log(`Mise à jour réussie : ${result.modifiedCount} documents modifiés`);
-        } else {
-            console.log('Aucun document modifié. Vérifiez si les IDs existent dans la base de données.');
-        }
+        console.log(`Mise à jour réussie pour ${result.nModified} réservations.`);
     } catch (error) {
-        console.error('Erreur lors de la mise à jour des réservations :', error.message);
+        console.error('Erreur lors de la mise à jour des réservations :', error);
     }
 };
+
 
 // Récupérer une réservation par ID
 exports.getReservationById = async (req, res) => {
