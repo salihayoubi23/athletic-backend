@@ -1,56 +1,45 @@
 const Reservation = require('../models/reservationModel');
 const Prestation = require('../models/prestationModel');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-const moment = require('moment');
 const dotenv = require('dotenv');
+const mongoose = require('mongoose');
 
 dotenv.config();
 
+// Récupérer les réservations d'un utilisateur spécifique
 exports.getUserReservations = async (req, res) => {
     try {
         const reservations = await Reservation.find({ user: req.user._id }).populate('prestation').exec();
         res.json(reservations);
     } catch (err) {
-        console.error(err);
+        console.error('Erreur lors de la récupération des réservations utilisateur:', err);
         res.status(500).json({ message: 'Erreur lors de la récupération des réservations.' });
     }
 };
 
+// Récupérer toutes les réservations (administrateur)
 exports.getAllReservations = async (req, res) => {
     try {
         const reservations = await Reservation.find().populate('user prestation');
         res.json(reservations);
     } catch (err) {
-        console.error('Erreur lors de la récupération des réservations:', err);
+        console.error('Erreur lors de la récupération de toutes les réservations:', err);
         res.status(500).json({ message: "Erreur lors de la récupération des réservations." });
     }
 };
 
+// Récupérer les réservations payées d'un utilisateur
 exports.getUserPaidReservations = async (req, res) => {
     try {
         const reservations = await Reservation.find({ user: req.user._id, status: 'paid' }).populate('prestation').exec();
         res.json(reservations);
     } catch (err) {
-        console.error(err);
+        console.error('Erreur lors de la récupération des réservations payées:', err);
         res.status(500).json({ message: 'Erreur lors de la récupération des réservations payées.' });
     }
 };
 
-exports.updateReservationStatus = async (req, res) => {
-    try {
-        const { reservationId } = req.body;
-        const reservation = await Reservation.findById(reservationId);
-        if (!reservation) return res.status(404).json({ message: 'Réservation non trouvée.' });
-
-        reservation.status = 'paid';
-        await reservation.save();
-        res.status(200).json({ message: 'Réservation mise à jour avec succès.' });
-    } catch (err) {
-        console.error('Erreur lors de la mise à jour de la réservation:', err);
-        res.status(500).json({ message: 'Erreur lors de la mise à jour de la réservation.' });
-    }
-};
-
+// Créer une réservation
 exports.createReservation = async (req, res) => {
     const { prestations } = req.body;
     const user = req.user?.id;
@@ -80,28 +69,22 @@ exports.createReservation = async (req, res) => {
         res.status(500).json({ message: 'Erreur lors de la création de la réservation.' });
     }
 };
+
+// Créer une session de paiement
 exports.createCheckoutSession = async (req, res) => {
     try {
         const { reservationIds } = req.body;
 
-        // Vérifiez que les IDs des réservations sont fournis
         if (!reservationIds || reservationIds.length === 0) {
-            console.error('Aucun ID de réservation fourni dans la requête');
             return res.status(400).json({ message: 'Aucun ID de réservation fourni.' });
         }
-        console.log(`IDs de réservation reçus : ${reservationIds}`);
 
-        // Trouvez les réservations basées sur les IDs fournis
         const reservations = await Reservation.find({ _id: { $in: reservationIds } }).populate('prestations.prestationId');
 
-        // Vérifiez si des réservations ont été trouvées
         if (reservations.length === 0) {
-            console.error(`Aucune réservation trouvée pour les IDs fournis : ${reservationIds}`);
             return res.status(404).json({ message: 'Aucune réservation trouvée pour les IDs fournis.' });
         }
-        console.log(`Réservations trouvées : ${reservations.map(r => r._id)}`);
 
-        // Préparez les items pour la session de checkout
         const line_items = reservations.flatMap(reservation =>
             reservation.prestations.map(prestation => ({
                 price_data: {
@@ -110,14 +93,12 @@ exports.createCheckoutSession = async (req, res) => {
                         name: prestation.prestationId.name,
                         description: prestation.prestationId.description || prestation.prestationId.name,
                     },
-                    unit_amount: Math.round(prestation.prestationId.price * 100), // Assurez-vous que le prix est en cents
+                    unit_amount: Math.round(prestation.prestationId.price * 100),
                 },
                 quantity: prestation.quantity || 1,
             }))
         );
-        console.log(`Articles pour la session de paiement : ${JSON.stringify(line_items, null, 2)}`);
 
-        // Créez la session de paiement Stripe
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
             line_items,
@@ -127,9 +108,6 @@ exports.createCheckoutSession = async (req, res) => {
             metadata: { reservationIds: reservationIds.join(',') },
         });
 
-        console.log('Session de paiement créée avec succès :', session.id);
-
-        // Retournez l'URL de la session
         res.json({ url: session.url });
     } catch (error) {
         console.error("Erreur lors de la création de la session de paiement :", error.message);
@@ -137,10 +115,9 @@ exports.createCheckoutSession = async (req, res) => {
     }
 };
 
-
-
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
+// Gérer le webhook Stripe
 exports.handleStripeWebhook = async (req, res) => {
     const sig = req.headers['stripe-signature'];
     let event;
@@ -148,34 +125,28 @@ exports.handleStripeWebhook = async (req, res) => {
     try {
         event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
     } catch (err) {
-        console.error(`Webhook signature verification failed: ${err.message}`);
-        return res.status(400).send(`Webhook Error: ${err.message}`);
+        console.error(`Échec de vérification de la signature du webhook: ${err.message}`);
+        return res.status(400).send(`Erreur Webhook: ${err.message}`);
     }
 
-    // Gérer l'événement
-    switch (event.type) {
-        case 'checkout.session.completed':
-            const session = event.data.object;
-            const reservationIds = session.metadata.reservationIds;  // Assurez-vous que cela correspond à votre format
+    if (event.type === 'checkout.session.completed') {
+        const session = event.data.object;
+        const reservationIds = session.metadata.reservationIds ? session.metadata.reservationIds.split(',') : [];
 
-            console.log(`Session checkout terminée pour les réservations ${reservationIds}`);
-
-            // Vérifiez que l'ID est bien transmis, puis appelez la fonction de mise à jour
-            if (reservationIds && reservationIds.length > 0) {
-                await updateReservationStatus(reservationIds);
-            } else {
-                console.error('Erreur: Aucune réservation trouvée dans le webhook');
-            }
-            break;
-
-        default:
-            console.log(`Type d'événement non pris en charge: ${event.type}`);
+        if (reservationIds.length > 0) {
+            await updateReservationStatus(reservationIds);
+        } else {
+            console.error('Erreur: Aucune réservation trouvée dans le webhook');
+        }
+    } else {
+        console.log(`Type d'événement non pris en charge: ${event.type}`);
     }
 
     res.sendStatus(200);
 };
+
+// Mettre à jour le statut des réservations
 const updateReservationStatus = async (reservationIds) => {
-    // Vérifier si les IDs sont valides
     if (!Array.isArray(reservationIds) || reservationIds.length === 0) {
         console.error('Aucun ID de réservation fourni ou format incorrect.');
         return;
@@ -187,18 +158,15 @@ const updateReservationStatus = async (reservationIds) => {
     }
 
     try {
-        console.log(`Tentative de mise à jour des réservations avec les IDs : ${reservationIds}`);
-
-        // Effectuer la mise à jour
         const result = await Reservation.updateMany(
             { _id: { $in: reservationIds } },
             { $set: { status: 'paid' } }
         );
 
         if (result.modifiedCount > 0) {
-            console.log(`Résultat de la mise à jour : ${result.modifiedCount} documents modifiés`);
+            console.log(`Mise à jour réussie : ${result.modifiedCount} documents modifiés`);
         } else {
-            console.log('Aucun document n’a été modifié. Vérifiez si les IDs sont corrects et existent dans la base de données.');
+            console.log('Aucun document modifié. Vérifiez si les IDs existent dans la base de données.');
         }
     } catch (error) {
         console.error('Erreur lors de la mise à jour des réservations :', error.message);
@@ -207,19 +175,15 @@ const updateReservationStatus = async (reservationIds) => {
 
 exports.updateReservationStatus = updateReservationStatus;
 
-// Contrôleur pour récupérer une réservation par ID
+// Récupérer une réservation par ID
 exports.getReservationById = async (req, res) => {
     try {
-        console.log(`Recherche de la réservation avec l'ID : ${req.params.id}`);
-
         const reservation = await Reservation.findById(req.params.id).populate('prestations.prestationId');
         
         if (!reservation) {
-            console.error('Réservation non trouvée avec cet ID');
             return res.status(404).json({ message: 'Réservation non trouvée.' });
         }
 
-        console.log('Réservation trouvée :', reservation);
         res.json(reservation);
     } catch (error) {
         console.error('Erreur lors de la récupération de la réservation :', error.message);
