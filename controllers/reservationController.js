@@ -80,13 +80,24 @@ exports.createReservation = async (req, res) => {
         res.status(500).json({ message: 'Erreur lors de la création de la réservation.' });
     }
 };
-
 exports.createCheckoutSession = async (req, res) => {
     try {
         const { reservationIds } = req.body;
-        if (!reservationIds || reservationIds.length === 0) return res.status(400).json({ message: 'Aucun ID de réservation fourni.' });
 
+        // Vérifiez que les IDs des réservations sont fournis
+        if (!reservationIds || reservationIds.length === 0) {
+            return res.status(400).json({ message: 'Aucun ID de réservation fourni.' });
+        }
+
+        // Trouvez les réservations basées sur les IDs fournis
         const reservations = await Reservation.find({ _id: { $in: reservationIds } }).populate('prestations.prestationId');
+
+        // Vérifiez si des réservations ont été trouvées
+        if (reservations.length === 0) {
+            return res.status(404).json({ message: 'Aucune réservation trouvée pour les IDs fournis.' });
+        }
+
+        // Préparez les items pour la session de checkout
         const line_items = reservations.flatMap(reservation =>
             reservation.prestations.map(prestation => ({
                 price_data: {
@@ -95,12 +106,13 @@ exports.createCheckoutSession = async (req, res) => {
                         name: prestation.prestationId.name,
                         description: prestation.prestationId.description || prestation.prestationId.name,
                     },
-                    unit_amount: prestation.prestationId.price * 100,
+                    unit_amount: Math.round(prestation.prestationId.price * 100), // Assurez-vous que le prix est en cents
                 },
                 quantity: prestation.quantity || 1,
             }))
         );
 
+        // Créez la session de paiement Stripe
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
             line_items,
@@ -110,12 +122,14 @@ exports.createCheckoutSession = async (req, res) => {
             metadata: { reservationIds: reservationIds.join(',') },
         });
 
+        // Retournez l'URL de la session
         res.json({ url: session.url });
     } catch (error) {
         console.error("Erreur lors de la création de la session de paiement:", error);
         res.status(500).json({ message: 'Erreur lors de la création de la session de paiement.' });
     }
 };
+
 
 
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
