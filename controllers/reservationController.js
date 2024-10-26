@@ -124,7 +124,7 @@ exports.handleStripeWebhook = async (req, res) => {
     let event;
 
     try {
-        // Utiliser req.body sans JSON.parse pour conserver le corps brut
+        // Construire l'événement à partir du corps brut
         event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
         console.log("Événement reçu :", JSON.stringify(event, null, 2));
     } catch (err) {
@@ -132,9 +132,12 @@ exports.handleStripeWebhook = async (req, res) => {
         return res.status(400).send(`Erreur Webhook: ${err.message}`);
     }
 
-    // Vérifiez le type d'événement
+    // Vérifie le type d'événement
     if (event.type === 'checkout.session.completed') {
         const session = event.data.object;
+
+        // Log des métadonnées et de la session
+        console.log("Métadonnées de la session :", session.metadata);
         console.log("Session de paiement complétée détectée :", session);
 
         const reservationIds = session.metadata.reservationIds ? session.metadata.reservationIds.split(',') : [];
@@ -151,6 +154,7 @@ exports.handleStripeWebhook = async (req, res) => {
 
     res.sendStatus(200);
 };
+
 
 
 
