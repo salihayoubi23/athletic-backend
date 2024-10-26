@@ -118,43 +118,33 @@ exports.createCheckoutSession = async (req, res) => {
 };
 
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+exports.handleStripeWebhook = async (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    let event;
 
-exports.handleStripeWebhook = (req, res) => {
-  const sig = req.headers['stripe-signature'];
-  let event;
-
-  try {
-    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
-  } catch (err) {
-    console.error(`Webhook signature verification failed: ${err.message}`);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
-
-  // Gérer l'événement
-  switch (event.type) {
-    case 'checkout.session.completed':
-      const session = event.data.object;
-      console.log(`Session checkout terminée pour ${session.id}`);
-      break;
-    default:
-      console.log(`Type d'événement non pris en charge: ${event.type}`);
-  }
-
-  res.sendStatus(200);
-};
-
-
-
-exports.getReservationById = async (req, res) => {
     try {
-        const reservation = await Reservation.findById(req.params.id).populate('prestations.prestationId');
-        if (!reservation) return res.status(404).json({ message: 'Réservation non trouvée.' });
-
-        res.json(reservation);
-    } catch (error) {
-        console.error('Erreur lors de la récupération de la réservation:', error);
-        res.status(500).json({ message: 'Erreur interne du serveur.' });
+        event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+    } catch (err) {
+        console.error(`Webhook signature verification failed: ${err.message}`);
+        return res.status(400).send(`Webhook Error: ${err.message}`);
     }
+
+    // Gérer l'événement
+    switch (event.type) {
+        case 'checkout.session.completed':
+            const session = event.data.object;
+            const reservationId = session.metadata.reservationId;
+
+            console.log(`Session checkout terminée pour ${session.id} pour la réservation ${reservationId}`);
+
+            // Mettre à jour la réservation dans la base de données avec le statut 'paid'
+            await updateReservationStatusToPaid([reservationId]);
+            break;
+        default:
+            console.log(`Type d'événement non pris en charge: ${event.type}`);
+    }
+
+    res.sendStatus(200);
 };
 
 const updateReservationStatusToPaid = async (reservationIds) => {
@@ -165,5 +155,17 @@ const updateReservationStatusToPaid = async (reservationIds) => {
         );
     } catch (error) {
         console.error('Erreur lors de la mise à jour des réservations :', error);
+    }
+};
+
+exports.getReservationById = async (req, res) => {
+    try {
+        const reservation = await Reservation.findById(req.params.id).populate('prestations.prestationId');
+        if (!reservation) return res.status(404).json({ message: 'Réservation non trouvée.' });
+
+        res.json(reservation);
+    } catch (error) {
+        console.error('Erreur lors de la récupération de la réservation:', error);
+        res.status(500).json({ message: 'Erreur interne du serveur.' });
     }
 };
