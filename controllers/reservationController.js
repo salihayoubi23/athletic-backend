@@ -135,6 +135,7 @@ exports.handleStripeWebhook = async (req, res) => {
     if (event.type === 'checkout.session.completed') {
         const session = event.data.object;
         console.log("Session de paiement complétée détectée :", session);
+        console.log("reservationIds  :", session.metadata.reservationIds);
 
         const reservationIds = session.metadata.reservationIds ? session.metadata.reservationIds.split(',') : [];
         if (reservationIds.length > 0) {
@@ -152,6 +153,8 @@ exports.handleStripeWebhook = async (req, res) => {
 
 // Mettre à jour le statut des réservations
 exports.updateReservationStatus = async (reservationIds) => {
+    console.log('Mise à jour des réservations avec les IDs:', reservationIds); // Log des IDs
+
     if (!Array.isArray(reservationIds) || reservationIds.length === 0) {
         console.error('Aucun ID de réservation fourni ou format incorrect.');
         return;
