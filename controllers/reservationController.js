@@ -86,16 +86,20 @@ exports.createCheckoutSession = async (req, res) => {
 
         // Vérifiez que les IDs des réservations sont fournis
         if (!reservationIds || reservationIds.length === 0) {
+            console.error('Aucun ID de réservation fourni dans la requête');
             return res.status(400).json({ message: 'Aucun ID de réservation fourni.' });
         }
+        console.log(`IDs de réservation reçus : ${reservationIds}`);
 
         // Trouvez les réservations basées sur les IDs fournis
         const reservations = await Reservation.find({ _id: { $in: reservationIds } }).populate('prestations.prestationId');
 
         // Vérifiez si des réservations ont été trouvées
         if (reservations.length === 0) {
+            console.error(`Aucune réservation trouvée pour les IDs fournis : ${reservationIds}`);
             return res.status(404).json({ message: 'Aucune réservation trouvée pour les IDs fournis.' });
         }
+        console.log(`Réservations trouvées : ${reservations.map(r => r._id)}`);
 
         // Préparez les items pour la session de checkout
         const line_items = reservations.flatMap(reservation =>
@@ -111,6 +115,7 @@ exports.createCheckoutSession = async (req, res) => {
                 quantity: prestation.quantity || 1,
             }))
         );
+        console.log(`Articles pour la session de paiement : ${JSON.stringify(line_items, null, 2)}`);
 
         // Créez la session de paiement Stripe
         const session = await stripe.checkout.sessions.create({
@@ -122,10 +127,12 @@ exports.createCheckoutSession = async (req, res) => {
             metadata: { reservationIds: reservationIds.join(',') },
         });
 
+        console.log('Session de paiement créée avec succès :', session.id);
+
         // Retournez l'URL de la session
         res.json({ url: session.url });
     } catch (error) {
-        console.error("Erreur lors de la création de la session de paiement:", error);
+        console.error("Erreur lors de la création de la session de paiement :", error.message);
         res.status(500).json({ message: 'Erreur lors de la création de la session de paiement.' });
     }
 };
@@ -167,30 +174,55 @@ exports.handleStripeWebhook = async (req, res) => {
 
     res.sendStatus(200);
 };
-
 const updateReservationStatus = async (reservationIds) => {
+    // Vérifier si les IDs sont valides
+    if (!Array.isArray(reservationIds) || reservationIds.length === 0) {
+        console.error('Aucun ID de réservation fourni ou format incorrect.');
+        return;
+    }
+    
+    if (!reservationIds.every(id => mongoose.Types.ObjectId.isValid(id))) {
+        console.error('Certains IDs de réservation sont invalides :', reservationIds);
+        return;
+    }
+
     try {
-        console.log(`Tentative de mise à jour des réservations avec les IDs: ${reservationIds}`);
+        console.log(`Tentative de mise à jour des réservations avec les IDs : ${reservationIds}`);
+
+        // Effectuer la mise à jour
         const result = await Reservation.updateMany(
             { _id: { $in: reservationIds } },
             { $set: { status: 'paid' } }
         );
-        console.log(`Résultat de la mise à jour : ${result.modifiedCount} documents modifiés`);
+
+        if (result.modifiedCount > 0) {
+            console.log(`Résultat de la mise à jour : ${result.modifiedCount} documents modifiés`);
+        } else {
+            console.log('Aucun document n’a été modifié. Vérifiez si les IDs sont corrects et existent dans la base de données.');
+        }
     } catch (error) {
-        console.error('Erreur lors de la mise à jour des réservations :', error);
+        console.error('Erreur lors de la mise à jour des réservations :', error.message);
     }
 };
 
+exports.updateReservationStatus = updateReservationStatus;
 
-
+// Contrôleur pour récupérer une réservation par ID
 exports.getReservationById = async (req, res) => {
     try {
-        const reservation = await Reservation.findById(req.params.id).populate('prestations.prestationId');
-        if (!reservation) return res.status(404).json({ message: 'Réservation non trouvée.' });
+        console.log(`Recherche de la réservation avec l'ID : ${req.params.id}`);
 
+        const reservation = await Reservation.findById(req.params.id).populate('prestations.prestationId');
+        
+        if (!reservation) {
+            console.error('Réservation non trouvée avec cet ID');
+            return res.status(404).json({ message: 'Réservation non trouvée.' });
+        }
+
+        console.log('Réservation trouvée :', reservation);
         res.json(reservation);
     } catch (error) {
-        console.error('Erreur lors de la récupération de la réservation:', error);
+        console.error('Erreur lors de la récupération de la réservation :', error.message);
         res.status(500).json({ message: 'Erreur interne du serveur.' });
     }
 };
