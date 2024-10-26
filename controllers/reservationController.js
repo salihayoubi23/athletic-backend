@@ -139,7 +139,7 @@ exports.handleStripeWebhook = async (req, res) => {
 
         const reservationIds = session.metadata.reservationIds ? session.metadata.reservationIds.split(',') : [];
         if (reservationIds.length > 0) {
-            await updateReservationStatus(reservationIds);
+            await exports.updateReservationStatus(reservationIds);
         } else {
             console.error('Erreur: Aucune réservation trouvée dans le webhook');
         }
@@ -149,7 +149,6 @@ exports.handleStripeWebhook = async (req, res) => {
 
     res.sendStatus(200);
 };
-
 
 // Mettre à jour le statut des réservations
 exports.updateReservationStatus = async (reservationIds) => {
