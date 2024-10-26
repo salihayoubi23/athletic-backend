@@ -4,8 +4,8 @@ const dotenv = require('dotenv');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const compression = require('compression');
-const connectDB = require('./config/db');
 const bodyParser = require('body-parser');
+const connectDB = require('./config/db');
 
 // Charger les variables d'environnement
 dotenv.config();
@@ -36,16 +36,22 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Utiliser body-parser pour toutes les routes sauf /webhook
-app.use((req, res, next) => {
-    if (req.originalUrl === '/api/reservations/webhook') {
-        next();
-    } else {
-        bodyParser.json()(req, res, next);
+// Middleware pour le webhook Stripe pour capturer le corps brut
+app.post('/api/reservations/webhook', bodyParser.raw({ type: 'application/json' }), (req, res) => {
+    // Ici, vous traitez le webhook avec `req.body` en format brut
+    const sig = req.headers['stripe-signature'];
+
+    try {
+        const event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+        // Traitement de l'événement Stripe
+        res.status(200).send(`Event received: ${event.type}`);
+    } catch (err) {
+        console.log('Erreur de validation du webhook:', err.message);
+        res.status(400).send(`Webhook error: ${err.message}`);
     }
 });
 
-// Middleware pour parser les requêtes JSON et URL encodées
+// Utiliser express.json() pour toutes les autres routes
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
