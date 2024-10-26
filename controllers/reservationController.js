@@ -168,18 +168,19 @@ exports.handleStripeWebhook = async (req, res) => {
     res.sendStatus(200);
 };
 
-
 const updateReservationStatus = async (reservationIds) => {
     try {
+        console.log(`Tentative de mise à jour des réservations avec les IDs: ${reservationIds}`);
         const result = await Reservation.updateMany(
             { _id: { $in: reservationIds } },
             { $set: { status: 'paid' } }
         );
-        console.log(`Réservation ${reservationIds} mise à jour avec le statut "paid". Modifications: ${result.modifiedCount}`);
+        console.log(`Résultat de la mise à jour : ${result.modifiedCount} documents modifiés`);
     } catch (error) {
         console.error('Erreur lors de la mise à jour des réservations :', error);
     }
 };
+
 
 
 exports.getReservationById = async (req, res) => {
