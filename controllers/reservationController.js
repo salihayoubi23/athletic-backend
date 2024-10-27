@@ -135,22 +135,35 @@ exports.updateReservationStatus = async (reservationIds) => {
 exports.getUserReservations = async (req, res) => {
     try {
         // Log pour vérifier l'ID utilisateur
-        console.log('ID utilisateur:', req.user.id); // Utiliser req.user.id au lieu de req.params.userId
+        console.log('ID utilisateur:', req.user._id);
 
+        // Trouver les réservations de l'utilisateur avec le statut 'paid'
         const reservations = await Reservation.find({ 
-            user: req.user.id, // Changer userId par req.user.id
+            user: req.user._id, 
             status: 'paid' 
-        }).populate('prestation').exec();
+        })
+        .populate('prestation') // Popule le champ prestation
+        .exec();
 
         // Log pour vérifier les réservations récupérées
         console.log('Réservations trouvées:', reservations);
 
-        res.json({ data: reservations });
+        // Formater la réponse pour inclure les informations souhaitées
+        const formattedReservations = reservations.map(reservation => ({
+            reservationId: reservation._id, // ID de la réservation
+            userId: reservation.user, // ID de l'utilisateur
+            prestations: reservation.prestation, // Prestations (déjà peuplées)
+            createdAt: reservation.createdAt, // Date de création de la réservation
+            status: reservation.status // Statut de la réservation
+        }));
+
+        res.json({ data: formattedReservations }); // Envoie la réponse formatée
     } catch (err) {
         console.error('Erreur lors de la récupération des réservations payées:', err);
         res.status(500).json({ message: 'Erreur lors de la récupération des réservations payées.' });
     }
 };
+
 
 
 

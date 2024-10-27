@@ -20,7 +20,7 @@ const prestationSchema = new mongoose.Schema({
     },
     slug: { 
         type: String, 
-        unique: true, // Le slug doit être unique
+        unique: true, // 
         required: true 
     }
 }, { timestamps: true }); // Ajout de timestamps pour la prestation
