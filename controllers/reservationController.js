@@ -154,19 +154,6 @@ exports.getUserReservations = async (req, res) => {
 };
 
 
-
-
-// Récupérer les réservations payées d'un utilisateur
-exports.getUserReservations = async (req, res) => {
-    try {
-        const reservations = await Reservation.find({ user: req.user._id, status: 'paid' }).populate('prestation').exec();
-        res.json(reservations);
-    } catch (err) {
-        console.error('Erreur lors de la récupération des réservations payées:', err);
-        res.status(500).json({ message: 'Erreur lors de la récupération des réservations payées.' });
-    }
-};
-
 // Récupérer une réservation par ID
 exports.getReservationById = async (req, res) => {
     try {
