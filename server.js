@@ -43,7 +43,7 @@ app.use((req, res, next) => {
     }
 });
 // Middleware pour le parsing des requêtes JSON (pour toutes les autres routes)
-app.use(express.json());
+
 app.use(express.urlencoded({ extended: true }));
 
 // Importation des routes
