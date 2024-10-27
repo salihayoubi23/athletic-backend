@@ -138,7 +138,7 @@ exports.handleStripeWebhook = async (req, res) => {
 
         // Log des métadonnées et de la session
         console.log("Métadonnées de la session :", session.metadata);
-        console.log("Session de paiement complétée détectée :", session);
+        console.log("Session de paiement complétée détectée :", session.reservationIds);
 
         const reservationIds = session.metadata.reservationIds ? session.metadata.reservationIds.split(',') : [];
         console.log("Reservation IDs in webhook:", reservationIds);
