@@ -34,32 +34,6 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // Middleware pour gérer les webhooks Stripe avec express.raw uniquement pour la route webhook
-const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
-
-app.post('/api/reservations/webhook', express.raw({ type: 'application/json' }), (req, res) => {
-    const sig = req.headers['stripe-signature'];
-    let event;
-
-    try {
-        // Validation de la signature du webhook Stripe
-        event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
-    } catch (err) {
-        console.error(`Erreur de validation du webhook : ${err.message}`);
-        return res.status(400).send(`Webhook error: ${err.message}`);
-    }
-
-    // Vérification du type d'événement et exécution de la logique pour chaque cas
-    if (event.type === 'checkout.session.completed') {
-        const session = event.data.object;
-        console.log(`Checkout session ID ${session.id} complétée.`);
-        // Logique de mise à jour des réservations à "paid" ici
-    } else {
-        console.log(`Type d'événement non pris en charge: ${event.type}`);
-    }
-
-    // Répondre avec un statut 200 pour confirmer la réception
-    res.sendStatus(200);
-});
 
 // Middleware pour le parsing des requêtes JSON (pour toutes les autres routes)
 app.use(express.json());
