@@ -103,9 +103,9 @@ exports.createCheckoutSession = async (req, res) => {
             payment_method_types: ['card'],
             line_items,
             mode: 'payment',
+            metadata: { reservationIds: reservationIds.join(',') },
             success_url: `${process.env.CLIENT_URL}/Success`,
             cancel_url: `${process.env.CLIENT_URL}/Cancel`,
-            metadata: { reservationIds: reservationIds.join(',') },
         });
 
         res.json({ url: session.url });
