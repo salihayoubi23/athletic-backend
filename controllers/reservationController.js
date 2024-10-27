@@ -142,7 +142,10 @@ exports.getUserReservations = async (req, res) => {
             user: req.user.id, 
             status: 'paid' 
         })
-        .populate('prestation') // Popule le champ prestation
+        .populate({
+            path: 'prestations.prestationId', // Chemin correct pour peupler l'ID de prestation
+            model: 'Prestation' // Modèle à peupler
+        })
         .exec();
 
         // Log pour vérifier les réservations récupérées
@@ -152,7 +155,12 @@ exports.getUserReservations = async (req, res) => {
         const formattedReservations = reservations.map(reservation => ({
             reservationId: reservation._id, // ID de la réservation
             userId: reservation.user, // ID de l'utilisateur
-            prestations: reservation.prestation, // Prestations (déjà peuplées)
+            prestations: reservation.prestations.map(p => ({
+                prestationId: p.prestationId, // ID de la prestation
+                name: p.name, // Nom de la prestation
+                price: p.price, // Prix de la prestation
+                date: p.date // Date de la prestation
+            })), // Prestations (déjà peuplées)
             createdAt: reservation.createdAt, // Date de création de la réservation
             status: reservation.status // Statut de la réservation
         }));
@@ -163,6 +171,7 @@ exports.getUserReservations = async (req, res) => {
         res.status(500).json({ message: 'Erreur lors de la récupération des réservations payées.' });
     }
 };
+
 
 
 
