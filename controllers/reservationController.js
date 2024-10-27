@@ -6,38 +6,7 @@ const mongoose = require('mongoose');
 
 dotenv.config();
 
-// Récupérer les réservations d'un utilisateur spécifique
-exports.getUserReservations = async (req, res) => {
-    try {
-        const reservations = await Reservation.find({ user: req.user._id }).populate('prestation').exec();
-        res.json(reservations);
-    } catch (err) {
-        console.error('Erreur lors de la récupération des réservations utilisateur:', err);
-        res.status(500).json({ message: 'Erreur lors de la récupération des réservations.' });
-    }
-};
 
-// Récupérer toutes les réservations (administrateur)
-exports.getAllReservations = async (req, res) => {
-    try {
-        const reservations = await Reservation.find().populate('user prestation');
-        res.json(reservations);
-    } catch (err) {
-        console.error('Erreur lors de la récupération de toutes les réservations:', err);
-        res.status(500).json({ message: "Erreur lors de la récupération des réservations." });
-    }
-};
-
-// Récupérer les réservations payées d'un utilisateur
-exports.getUserPaidReservations = async (req, res) => {
-    try {
-        const reservations = await Reservation.find({ user: req.user._id, status: 'paid' }).populate('prestation').exec();
-        res.json(reservations);
-    } catch (err) {
-        console.error('Erreur lors de la récupération des réservations payées:', err);
-        res.status(500).json({ message: 'Erreur lors de la récupération des réservations payées.' });
-    }
-};
 
 // Créer une réservation
 exports.createReservation = async (req, res) => {
@@ -163,11 +132,48 @@ exports.updateReservationStatus = async (reservationIds) => {
     }
 };
 
+// Récupérer toutes les réservations (administrateur)
+exports.getUserReservations = async (req, res) => {
+    try {
+        // Log pour vérifier l'ID utilisateur
+        console.log('ID utilisateur:', req.user._id);
+
+        const reservations = await Reservation.find({ 
+            user: req.user._id, 
+            status: 'paid' 
+        }).populate('prestation').exec();
+
+        // Log pour vérifier les réservations récupérées
+        console.log('Réservations trouvées:', reservations);
+
+        res.json({ data: reservations }); // Assure-toi que le format de la réponse est correct
+    } catch (err) {
+        console.error('Erreur lors de la récupération des réservations payées:', err);
+        res.status(500).json({ message: 'Erreur lors de la récupération des réservations payées.' });
+    }
+};
+
+
+
+
+// Récupérer les réservations payées d'un utilisateur
+exports.getUserReservations = async (req, res) => {
+    try {
+        const reservations = await Reservation.find({ user: req.user._id, status: 'paid' }).populate('prestation').exec();
+        res.json(reservations);
+    } catch (err) {
+        console.error('Erreur lors de la récupération des réservations payées:', err);
+        res.status(500).json({ message: 'Erreur lors de la récupération des réservations payées.' });
+    }
+};
 
 // Récupérer une réservation par ID
 exports.getReservationById = async (req, res) => {
     try {
-        const reservation = await Reservation.findById(req.params.id).populate('prestations.prestationId');
+        const reservation = await Reservation.findOne({
+            _id: req.params.id,
+            user: req.user._id  // Assure que la réservation appartient à l'utilisateur
+        }).populate('prestations.prestationId');
         
         if (!reservation) {
             return res.status(404).json({ message: 'Réservation non trouvée.' });
