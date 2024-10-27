@@ -134,14 +134,11 @@ exports.updateReservationStatus = async (reservationIds) => {
 
 exports.getUserReservations = async (req, res) => {
     try {
-        // Récupérer l'ID utilisateur depuis les paramètres de l'URL
-        const userId = req.params.userId;
-
         // Log pour vérifier l'ID utilisateur
-        console.log('ID utilisateur:', userId);
+        console.log('ID utilisateur:', req.user.id); // Utiliser req.user.id au lieu de req.params.userId
 
         const reservations = await Reservation.find({ 
-            user: userId, 
+            user: req.user.id, // Changer userId par req.user.id
             status: 'paid' 
         }).populate('prestation').exec();
 
@@ -154,6 +151,7 @@ exports.getUserReservations = async (req, res) => {
         res.status(500).json({ message: 'Erreur lors de la récupération des réservations payées.' });
     }
 };
+
 
 
 // Récupérer une réservation par ID
