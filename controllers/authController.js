@@ -75,7 +75,7 @@ exports.login = async (req, res) => {
             message: 'Connexion réussie.', 
             token, 
             userId: user._id,
-            username: user.username // Ajoutez le nom d'utilisateur dans la réponse
+            username: user.username 
         });
     } catch (err) {
         console.error('Erreur lors de la connexion:', err);

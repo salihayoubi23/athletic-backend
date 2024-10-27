@@ -132,21 +132,23 @@ exports.updateReservationStatus = async (reservationIds) => {
     }
 };
 
-// Récupérer toutes les réservations (administrateur)
 exports.getUserReservations = async (req, res) => {
     try {
+        // Récupérer l'ID utilisateur depuis les paramètres de l'URL
+        const userId = req.params.userId;
+
         // Log pour vérifier l'ID utilisateur
-        console.log('ID utilisateur:', req.user._id);
+        console.log('ID utilisateur:', userId);
 
         const reservations = await Reservation.find({ 
-            user: req.user._id, 
+            user: userId, 
             status: 'paid' 
         }).populate('prestation').exec();
 
         // Log pour vérifier les réservations récupérées
         console.log('Réservations trouvées:', reservations);
 
-        res.json({ data: reservations }); // Assure-toi que le format de la réponse est correct
+        res.json({ data: reservations });
     } catch (err) {
         console.error('Erreur lors de la récupération des réservations payées:', err);
         res.status(500).json({ message: 'Erreur lors de la récupération des réservations payées.' });
