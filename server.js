@@ -34,7 +34,14 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // Middleware pour gérer les webhooks Stripe avec express.raw uniquement pour la route webhook
-
+// Middleware pour les requêtes JSON (sauf le webhook Stripe)
+app.use((req, res, next) => {
+    if (req.originalUrl === '/api/reservations/webhook') {
+        next();
+    } else {
+        express.json()(req, res, next);
+    }
+});
 // Middleware pour le parsing des requêtes JSON (pour toutes les autres routes)
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
