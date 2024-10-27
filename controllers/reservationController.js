@@ -135,11 +135,11 @@ exports.updateReservationStatus = async (reservationIds) => {
 exports.getUserReservations = async (req, res) => {
     try {
         // Log pour vérifier l'ID utilisateur
-        console.log('ID utilisateur:', req.user._id);
+        console.log('ID utilisateur:', req.user.id);
 
         // Trouver les réservations de l'utilisateur avec le statut 'paid'
         const reservations = await Reservation.find({ 
-            user: req.user._id, 
+            user: req.user.id, 
             status: 'paid' 
         })
         .populate('prestation') // Popule le champ prestation
