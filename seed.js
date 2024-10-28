@@ -6,21 +6,21 @@ const prestations = [
     {
         name: 'Prestation Du Lundi',
         description: 'Découvrez notre première prestation exceptionnelle qui vous aidera à atteindre vos objectifs sportifs.',
-        price: 100,
+        price: 3,
         availableDays: ['lundi'],
         slug: 'prestation-du-lundi' // Ajoutez le slug ici
     },
     {
         name: 'Prestation Du Mercredi',
         description: 'La deuxième prestation met l\'accent sur des techniques avancées pour améliorer vos performances.',
-        price: 150,
+        price: 3,
         availableDays: ['mercredi'],
         slug: 'prestation-du-mercredi' // Ajoutez le slug ici
     },
     {
         name: 'Prestation Du Dimanche',
         description: 'Profitez de notre troisième prestation pour un accompagnement personnalisé et des conseils experts.',
-        price: 200,
+        price: 3,
         availableDays: ['dimanche'],
         slug: 'prestation-du-dimanche' // Ajoutez le slug ici
     }
